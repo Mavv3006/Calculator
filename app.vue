@@ -1,173 +1,89 @@
 <template>
-  <div>
-    <h1>Hello World</h1>
+  <div class="ml-16 mt-8">
+    <div class="grid grid-cols-4 grid-rows-6 w-64 h-80 gap-1">
+      <div class="text-clip overflow-hidden p-2 pr-4 text-right bg-gray-900 text-blue-300 col-span-4 tracking-wider">
+        {{ input }}
+      </div>
+      <custom-button @click="allClear()">
+        AC
+      </custom-button>
+      <custom-button @click="clearLast()">
+        C
+      </custom-button>
+      <custom-button @click="addText('%')">
+        %
+      </custom-button>
+      <custom-button @click="addText('/')">
+        /
+      </custom-button>
+      <custom-button @click="addText('7')">
+        7
+      </custom-button>
+      <custom-button @click="addText('8')">
+        8
+      </custom-button>
+      <custom-button @click="addText('9')">
+        9
+      </custom-button>
+      <custom-button @click="addText('*')">
+        *
+      </custom-button>
+      <custom-button @click="addText('4')">
+        4
+      </custom-button>
+      <custom-button @click="addText('5')">
+        5
+      </custom-button>
+      <custom-button @click="addText('6')">
+        6
+      </custom-button>
+      <custom-button @click="addText('-')">
+        -
+      </custom-button>
+      <custom-button @click="addText('1')">
+        1
+      </custom-button>
+      <custom-button @click="addText('2')">
+        2
+      </custom-button>
+      <custom-button @click="addText('3')">
+        3
+      </custom-button>
+      <custom-button @click="addText('+')">
+        +
+      </custom-button>
+      <custom-button @click="addText('0')" class="col-span-2">
+        0
+      </custom-button>
+      <custom-button @click="evaluate()" class="col-span-2">
+        =
+      </custom-button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+let input = ref<string>("");
 
-class Stack<T> {
-  private elements = new Array<T>();
-
-  push(e: T): void {
-    this.elements.push(e);
-  }
-
-  pop(): void {
-    if (this.elements.length == 0) {
-      throw new Error('popping empty stack', {});
-    }
-    this.elements.pop();
-  }
-
-  top(): T {
-    if (this.elements.length == 0) {
-      throw new Error('top of empty stack', {});
-    }
-    return this.elements[-1];
-  }
-
-  isEmpty(): boolean {
-    return this.elements == new Array<T>();
-  }
-
-  copy(): Stack<T> {
-    let c = new Stack<T>();
-    c.elements = this.elements;
-    return c;
-  }
-
-  toString(): string {
-    let c = this.copy();
-    let result = c.convert();
-    let dashes = '-'.repeat(result.length);
-    return [dashes, result, dashes].join('\n');
-  }
-
-  private convert(): string {
-    if (this.isEmpty()) { return '|' }
-    let t = this.top();
-    this.pop();
-    return this.convert() + ` ${t} |`;
-  }
+function allClear(): void {
+  input.value = "";
 }
 
-function tokenize(s: string): Array<string> {
-  let result = new Array<string>();
-  for (const match of s.matchAll(/([0-9]+|\*\*|[()+*%\/\-])/)) {
-    result.push(match[0]);
-  }
-  return result.reverse();
+function clearLast(): void {
+  input.value = input.value.substring(0, input.value.length - 1);
 }
 
-interface Precedence {
-  readonly [k: string]: number
+function addText(value: string): void {
+  input.value = `${input.value}${value}`;
 }
 
-function evalBefore(o1: string, o2: string): boolean {
-  if (o1 === '(') { return false; }
-  let precedence: Precedence = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, '**': 3 };
-  if (precedence[o1] > precedence[o2]) { return true; }
-  else if (precedence[o1] == precedence[o2]) {
-    if (o1 == o2) {
-      return o1 in ['+', '-', '*', '/', '%'];
-    } else {
-      return true;
-    }
-  } else {
-    return false;
-  }
+function evaluate(): void {
+  input.value = useCalculator(input.value).toString();
 }
 
-function createStack<T>(l: Array<T>): Stack<T> {
-  let s = new Stack<T>();
-  for (let index = 0; index < l.length; index++) {
-    const element = l[index];
-    s.push(element)
-  }
-  return s;
-}
-
-function isNumeric(str: any): boolean {
-  return !isNaN(parseFloat(str)) && isFinite(str);
-}
-
-class Calculator {
-  mTokens: Stack<string>;
-  mArguments: Stack<number>;
-  mOperators: Stack<string>;
-
-  constructor(s: string) {
-    this.mTokens = createStack(tokenize(s))
-    this.mArguments = new Stack();
-    this.mOperators = new Stack();
-  }
-
-  evaluate(): number {
-    while (!this.mTokens.isEmpty()) {
-      let t = this.mTokens.top();
-      this.mTokens.pop();
-
-      if (isNumeric(t)) {
-        this.mArguments.push(parseInt(t));
-        continue;
-      }
-
-      if (this.mOperators.isEmpty() || t == '(') {
-        this.mOperators.push(t);
-        continue;
-      }
-
-      let topOp = this.mOperators.top();
-
-      if (topOp == '(' && t == ')') {
-        this.mOperators.pop();
-      } else if (t == ')' || evalBefore(topOp, t)) {
-        this.popAndEvaluate();
-        this.mTokens.push(t);
-      } else {
-        this.mOperators.push(t)
-      }
-    }
-
-    while (!this.mOperators.isEmpty()) {
-      this.popAndEvaluate()
-    }
-
-    return this.mArguments.top();
-  }
-
-  popAndEvaluate() {
-    let rhs = this.mArguments.top(); this.mArguments.pop();
-    let lhs = this.mArguments.top(); this.mArguments.pop();
-    let op = this.mOperators.top(); this.mOperators.pop();
-    let result: number;
-
-    switch (op) {
-      case '+':
-        result = lhs + rhs;
-        break;
-      case '-':
-        result = lhs - rhs;
-        break;
-      case '*':
-        result = lhs * rhs;
-        break;
-      case '/':
-        result = lhs / rhs;
-        break;
-      case '%':
-        result = lhs % rhs;
-        break;
-      case '**':
-        result = lhs ** rhs;
-        break;
-      default:
-        throw new Error('Invalid Argument')
-    }
-
-    this.mArguments.push(result);
-  }
-}
-
+useHead({
+  bodyAttrs: { class: 'bg-gray-400' }
+})
 </script>
+
+<style></style>
